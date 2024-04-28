@@ -1,0 +1,5 @@
+Flask==2.0.1
+numpy==1.19.5
+opencv-python-headless==4.5.2.54
+easyocr==1.4
+gunicorn==20.0.4
