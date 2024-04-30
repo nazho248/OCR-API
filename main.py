@@ -36,8 +36,16 @@ def delete_file(file_path):
         print(f"El archivo {file_path} no existe.")
 
 
+@app.route("/health")
+def health():
+    return jsonify({
+        "Status": "Server corriendo bien :)"
+    }), 400
+
 @app.route("/ocr", methods=['POST'])
 def ocr():
+    print("peticion recibida)")
+
     #    # Verificar la clave secreta
     key = request.headers.get('Authorization')
     # --------------------------------- VALIDACIONES ----------------------
@@ -144,5 +152,6 @@ def ocr():
         return jsonify({'error': str(e)}), 500
 
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    port = int(os.getenv("PORT", 5000))  # Usa el puerto proporcionado por Cloud Run o 5000 en local
+    app.run(host="0.0.0.0", port=port, debug=True)

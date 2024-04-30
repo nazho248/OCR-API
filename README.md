@@ -1,15 +1,140 @@
-# easyocr-server
+# Easy OCR Flask API
 
-[![](http://img.youtube.com/vi/tCLGWN6Dhc0/0.jpg)](http://www.youtube.com/watch?v=tCLGWN6Dhc0 "")
+Este proyecto consiste en una api del ocr de la biblioteca [EasyOCR](https://github.com/JaidedAI/EasyOCR) la 
+cual usa inteligencia artificial para reconocimiento de caracteres.
 
-https://github.com/yingshaoxo-lab/easyocr-server
+Para ejecutar el proyecto, se necesita de:
+* Python 3.8
+* EasyOCR
+* Flask 2.0.1
 
-https://github.com/pallets/flask
-
-https://github.com/JaidedAI/EasyOCR
+luego se ejecuta:
 
 ```
-python3 main.py
-
-http://127.0.0.1:5000/text.png
+python3 main.py port=5000
 ```
+y se ingresa al [localhost:5000/ocr](http://127.0.0.1:5000/ocr).
+<br>
+Si se necesita verificar estado del servicio se ingresa a [localhost:5000/health](http://127.0.0.1:5000/health) el cual imprimirá un json con
+```
+{
+    "Status": "Server corriendo bien :)"
+}
+```
+
+Esta API esta diseñada para enviar peticiones HTTP raw o json y por ahora solo recibe **IMAGENES**. Por ahora el unico endpoint es:
+
+
+
+### POST
+Procesa la imagen enviada y devuelve un Json con la imagen en base64 y el texto extraído con su respectiva confianza.
+
+* ### Body requerido
+Para la petición POST se requieren exactamente 2 valores en formato json, `archivo` y `archivo_nombre`, siendo el primero el archivo codificado en base64 y el segundo el nombre del archivo con su extensión. 
+
+
+* ### HEADERS requeridos:
+* Authotization: Este valor es un valor plano para autentificacion del usuario que consulta para evitar ataques. Este se encuentra en main.py y debe coincidir. Por defecto es `OGLIT44458OCR32`.
+* Content-Type: Este valor debe ser `application/json`, por que es el estandar para la api.
+* GUID: Este es un identificador único de la petición, esto para efectos de depuración.
+
+<hr>
+
+## Ejemplo Uso
+En el [archivo petition.md](Documentation/Petition.md) En documentation, se encuentra un CURL de ejemplo en el cual le mandamos la siguiente [imagen](Documentation/factura.png):
+![factura con CUFE](Documentation/factura.png)
+Esta se transforma a base 64 ([Base64Guru](https://base64.guru/converter/encode) las codifica en base64 y con [Code Beautify](https://codebeautify.org/base64-to-image-converter) se decodifica para efectos de pruebas).
+
+Finalmente se envia un json así:
+```json lines
+{
+  "archivo": "Base64asjfkdhasujkfasdfjkashgdfasdfbjkasgf",
+  "archivo_nombre": "file.png"
+}
+```
+Con sus respectivos Headers
+```json lines
+  --header 'Authorization: OGLIT44458OCR32' \
+  --header 'Content-Type: application/json' \
+  --header 'GUID: AvSd#eSd3123S' \
+  --header 'User-Agent: insomnia/9.1.0' \
+```
+
+y nos arroja una respuesta así
+```json lines
+
+{
+  "imagen_output": "Base64_con_texto_identificado_Asdjkashfiklaswjgifuhsawdiufjkaswd...",
+  "textos": [
+    {
+      "confidence": 0.6765828300896995,
+      "text": "CUFE"
+    },
+    {
+      "confidence": 0.5185472640909319,
+      "text": "e54ef540bd2092ba82255a7cfe6f8d21491321eb9d48"
+    },
+    {
+      "confidence": 0.4558746145922156,
+      "text": "eecgce3ccoc31a"
+    },
+    {
+      "confidence": 0.42207323121012874,
+      "text": "44258203/5477370326203ad8f621c"
+    },
+    {
+      "confidence": 0.8958780567938724,
+      "text": "c90b9b9a"
+    },
+    {
+      "confidence": 0.16475350029594904,
+      "text": "REPRESENTACION GRAFICP DE LA FACTURA"
+    },
+    {
+      "confidence": 0.8350578139552077,
+      "text": "ELECTRONICA"
+    },
+    {
+      "confidence": 0.9973578790227252,
+      "text": "2024/03/30"
+    },
+    {
+      "confidence": 0.7669226532329895,
+      "text": "17;19"
+    }
+  ]
+}
+
+```
+La imagen que da de output es la siguiente:
+
+![factura Procesada](Documentation/proccessed-image.png)
+
+## Montaje en docker con Google Cloud
+
+Para el montaje en docker se descarga desde [el sitio oficial](https://www.docker.com/products/docker-desktop/) y bueno siguiente siguiente...
+
+Para crear la imagen se hace con `docker image built -t nombreimagen .` y para ejecutarlo en el docker local se hace un `docker run -p 5000:5000 nombreimagen`
+y ya estaría montado, no hay que tocar dockerfile ni requeriments.txt.
+
+Para montarlo en Google cloud nos descargamos el sdk de google cloud lo configuramos segun su [documentacion](https://cloud.google.com/sdk/?authuser=2&hl=es_419) oficial.
+
+Luego ejecutamos 
+
+```shell
+gcloud artifacts repositories create nombreRepositorio --repository-format=docker --location=us-central1 --description="descripcion del repositorio"
+```
+esto para crear el repositorio en Google cloud, podemos hacerlo desde la web pero esto es más rapido. (es posible modificar la location)
+
+luego ejecutamos
+
+```shell
+gcloud builds submit --region=us-central --tag us-central1-docker.pkg.dev/id-proyecto-gcloud/nombre-repo/nombreimagen:tagcualquiera
+```
+para subir el docker a nuestro repositorio. cabe destacar que la ruta se peude obtener en google cloud desde [aqui](https://console.cloud.google.com/artifacts?referrer=search&project) ingresando al repositorio y copiando su ruta. Luego de este codigo se carga a la nube
+
+Finalmente se ejecuta:
+```shell
+gcloud run deploy --image=us-central1-docker.pkg.dev/fair-bearing-414921/easy-ocr-api/easyocrapip:tag1
+```
+Nos pedira si queremos habilitar las apis para continuar, le damos Y, y luego nos pide especificar la region, esta tiene que coincidir con la que colocamos en nuestro repositorio, en este caso **[32] us-central1**, de igual forma nos da una lista para decidir.
