@@ -26,6 +26,17 @@ def convert_image_to_base64(image_path):
 
     return image_base64
 
+def safe_b64decode(input_string):
+    # Normalizar y limpiar la cadena de entrada
+    input_string = input_string.strip()
+    # Reemplazar caracteres no base64 que podrían ser añadidos en algunos casos
+    input_string = input_string.replace(" ", "+")
+    try:
+        return base64.b64decode(input_string)
+    except ValueError as e:
+        print("Error de decodificación Base64:", e)
+        return None
+
 def delete_file(file_path):
     # Comprobar si el archivo existe
     if os.path.exists(file_path):
@@ -40,7 +51,14 @@ def delete_file(file_path):
 def health():
     return jsonify({
         "Status": "Server corriendo bien :)"
-    }), 400
+    }), 300
+
+
+@app.route("/")
+def index():
+    return jsonify({
+        "Status":"Hola mundo"
+    }),300
 
 @app.route("/ocr", methods=['POST'])
 def ocr():
@@ -75,7 +93,13 @@ def ocr():
 
     # paso la imagen en base64 recibida a archivo
     base64_image = data['archivo']
-    image_data = base64.b64decode(base64_image)
+
+    image_data = safe_b64decode(base64_image)
+
+    if image_data is None:
+        return jsonify({'error': 'Invalid base64 data'}), 400
+
+
     nparr = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
@@ -135,14 +159,23 @@ def ocr():
                                   'confidence': result[2],
                                   } for result in results]
 
+        extracted_texts = ' '.join([result['text'] for result in texts_with_confidence])
+
         delete_file(output_path)
         delete_file(image_path)
 
         # texts = [result[1] for result in results]
         return {
+            "status": "Recibido",
+            "http":"200",
+            "messagee":"Correcto",
+            "data":{
+            "texto_completo":extracted_texts,
+            "textos": texts_with_confidence,
             "imagen_output": output_image64,
-            "textos": texts_with_confidence
-        }
+        },
+
+        }, 200
 
 
     except Exception as e:
