@@ -4,6 +4,7 @@ import os
 import cv2
 import numpy as np
 import base64
+from pdf2image import convert_from_path
 
 # Inicializar el lector de OCR con el idioma deseado.
 reader = easyocr.Reader(['es'])  # Asumiendo que el texto es en español
@@ -51,14 +52,15 @@ def delete_file(file_path):
 def health():
     return jsonify({
         "Status": "Server corriendo bien :)"
-    }), 300
+    }), 200
 
 
 @app.route("/")
 def index():
     return jsonify({
-        "Status":"Hola mundo"
-    }),300
+        "message":"Hola mundo"
+    }),200
+
 
 @app.route("/ocr", methods=['POST'])
 def ocr():
@@ -88,39 +90,73 @@ def ocr():
     if 'archivo_nombre' not in data:
         return jsonify({"error": "No se envio el nombre del documento"}), 400
 
+    base64_file = data['archivo']
+
     # verificar que el archivo
-    whitelist_filetypes = ['pdf', 'png']
+    filetype = data['filetype']
+    print(filetype)
+
+    match filetype:
+        case '.pdf':
+            # decodifico el base64 en pdf
+            archivo = base64.b64decode(base64_file)
+            ruta_archivo_pdf = 'input_files/' + guid + '.pdf'
+
+            # Guardar los datos binarios en un archivo
+            with open(ruta_archivo_pdf, 'wb') as file:
+                file.write(archivo)
+
+            # Convertir el PDF guardado en imágenes PNG
+            imagenes = convert_from_path(ruta_archivo_pdf)
+
+            # Guardar las imágenes en archivos PNG
+            output_images = []
+            for i, imagen in enumerate(imagenes):
+                ruta_imagen_png = f'outputs/p{guid}{i + 1}.png'
+                imagen.save(ruta_imagen_png, 'PNG')
+                output_images.append(ruta_imagen_png)
+
+            return jsonify({'message': 'Correcto', 'images': output_images}), 200
+
+
+
+
+
+        case '.png':
+            return jsonify({'mesage': 'No implementado'})
+        case _:
+            return jsonify({'mesage': 'Archivo no soportado'}), 400
+
 
     # paso la imagen en base64 recibida a archivo
-    base64_image = data['archivo']
+    base64_file = data['archivo']
 
-    image_data = safe_b64decode(base64_image)
+    image_data = safe_b64decode(base64_file)
 
     if image_data is None:
-        return jsonify({'error': 'Invalid base64 data'}), 400
-
+        return jsonify({'message': 'Invalid base64 data'}), 400
 
     nparr = np.frombuffer(image_data, np.uint8)
     img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     # Definir la ruta de la imagen
-    # image_path = 'D:/Proyectos/Oglit/OCR API/images/test_image.png'
+    # image_path = 'D:/Proyectos/Oglit/OCR API/input_files/test_image.png'
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    images_dir = os.path.normpath(os.path.join(base_dir, 'images'))
+    images_dir = os.path.normpath(os.path.join(base_dir, 'input_files'))
     image_path = os.path.normpath(os.path.join(images_dir, guid + '.png'))
 
     outputs_path = os.path.normpath(os.path.join(base_dir, 'outputs'))
     output_path = os.path.normpath(os.path.join(outputs_path, guid + '.png'))
 
     if img is None:
-        return jsonify({'error': 'Failed to load image'}), 500
+        return jsonify({'message': 'Failed to load image'}), 500
 
     try:
         save_success = cv2.imwrite(image_path, img)
         if not save_success:
             raise IOError("No se pudo guardar la imagen")
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
     # para ocr de imagenes dentro del propio directorio
     '''base_dir = os.path.dirname(os.path.abspath(__file__))  # Obtiene el directorio donde está el script
@@ -129,12 +165,12 @@ def ocr():
 
     # Comprobar si el archivo existe para evitar errores.
     if not os.path.isfile(image_path):
-        return jsonify({'error': 'File not found'}), 500
+        return jsonify({'message': 'File not found'}), 500
 
     # Cargar la imagen con OpenCV
     img = cv2.imread(image_path)
     if img is None:
-        return jsonify({'error': 'Failed to load image'}), 500
+        return jsonify({'message': 'Failed to load image'}), 500
 
     # Realizar OCR en la imagen.
     try:
@@ -166,9 +202,7 @@ def ocr():
 
         # texts = [result[1] for result in results]
         return {
-            "status": "Recibido",
-            "http":"200",
-            "messagee":"Correcto",
+            "message": "Recibido",
             "data":{
             "texto_completo":extracted_texts,
             "textos": texts_with_confidence,
@@ -179,10 +213,10 @@ def ocr():
 
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'message': str(e)}), 500
 
 
 if __name__ == '__main__':

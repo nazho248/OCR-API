@@ -7,6 +7,8 @@ Para ejecutar el proyecto, se necesita de:
 * Python 3.8
 * EasyOCR
 * Flask 2.0.1
+* [poppler](https://github.com/oschwartz10612/poppler-windows/releases/) (para lectura de PDFS, en windows descargar la ultima release 24.02, descomprimir en C y colocar la carpeta bin en variables de entorno), en Linux ejecutar: `sudo apt-get install poppler-utils
+`
 
 luego se ejecuta:
 
@@ -36,7 +38,9 @@ Para la petición POST se requieren exactamente 2 valores en formato json, `arch
 * ### HEADERS requeridos:
 * Authotization: Este valor es un valor plano para autentificacion del usuario que consulta para evitar ataques. Este se encuentra en main.py y debe coincidir. Por defecto es `OGLIT44458OCR32`.
 * Content-Type: Este valor debe ser `application/json`, por que es el estandar para la api.
-* GUID: Este es un identificador único de la petición, esto para efectos de depuración.
+* GUID: Este es un identificador único de la petición, esto para efectos de depuración y creacion de archivos.
+
+Crear la carpeta `input_files` y `outputs`
 
 <hr>
 
