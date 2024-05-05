@@ -12,13 +12,13 @@ Para ejecutar el proyecto, se necesita de:
 
 luego se ejecuta:
 
-```
+``` shell
 python3 main.py port=5000
 ```
 y se ingresa al [localhost:5000/ocr](http://127.0.0.1:5000/ocr).
 <br>
 Si se necesita verificar estado del servicio se ingresa a [localhost:5000/health](http://127.0.0.1:5000/health) el cual imprimirá un json con
-```
+``` json
 {
     "Status": "Server corriendo bien :)"
 }
@@ -28,7 +28,7 @@ Esta API esta diseñada para enviar peticiones HTTP raw o json y por ahora solo 
 
 
 
-### POST
+### POST ``/OCR``
 Procesa la imagen enviada y devuelve un Json con la imagen en base64 y el texto extraído con su respectiva confianza.
 
 * ### Body requerido
@@ -42,9 +42,39 @@ Para la petición POST se requieren exactamente 2 valores en formato json, `arch
 
 Crear la carpeta `input_files` y `outputs`
 
+### GET ``/``
+Al hacer un GET en el index (/), este va a retornar url not provided ya que el index funciona para extraer videos de instagram.
+
+Los unicos queries requeridos son:
+* url: url del video de instagram, por ejemplo ``https://www.instagram.com/p/C6SjFTOgVTd``
+* d: Este valor es **Opcional** por lo que si se envia, es cualquier cosa. Este query es para que redirija al video para descargarlo directamente
+
 <hr>
 
 ## Ejemplo Uso
+
+### GET ```/```
+
+Para hacer una peticion y obtener un video de instagram puede hacerse de la siguiente forma.
+
+Abrir el navegador y colocar la url ```http://localhost:5000/?url=https://www.instagram.com/p/C6SjFTOgVTd``` y nos retornará el siguiente json
+
+```json
+{
+    "data": {
+        "filename": "ig-downloader-1714951503.mp4",
+        "height": "1920",
+        "videoUrl": "https://scontent.cdninstagram.com/v/t66.30100-16/40151049_7443673592382761_7026644123582268717_n.mp4?_nc_ht=scontent.cdninstagram.com&_nc_cat=105&_nc_ohc=gD-kmvp9zzcQ7kNvgFo2gcM&edm=APs17CUBAAAA&ccb=7-5&oh=00_AfAI3lczemjMxEoyMdln_yjAeuvpEzZrrFP91MheIQhCIg&oe=6639FA02&_nc_sid=10d13b",
+        "width": "1080"
+    },
+    "status": "success"
+}
+```
+Mientras que si abrimos la URL ```http://localhost:5000/?url=https://www.instagram.com/p/C6SjFTOgVTd&d=loquesea``` Nos reenviará al url del video obtenido en la misma pestaña, viendo así el video que queremos.
+
+
+
+### POST ```/OCR```
 En el [archivo petition.md](Documentation/Petition.md) En documentation, se encuentra un CURL de ejemplo en el cual le mandamos la siguiente [imagen](Documentation/factura.png):
 ![factura con CUFE](Documentation/factura.png)
 Esta se transforma a base 64 ([Base64Guru](https://base64.guru/converter/encode) las codifica en base64 y con [Code Beautify](https://codebeautify.org/base64-to-image-converter) se decodifica para efectos de pruebas).

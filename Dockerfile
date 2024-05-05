@@ -1,6 +1,8 @@
 # start by pulling the python image
 FROM python:3.8-slim
 
+RUN apt-get update && apt-get install -y poppler-utils
+
 # copy the requirements file into the image
 COPY ./requirements.txt /app/requirements.txt
 
@@ -37,4 +39,3 @@ EXPOSE 5000
 ENTRYPOINT ["python"]
 
 CMD ["main.py"]
-

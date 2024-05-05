@@ -1,78 +1,63 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, redirect
 import easyocr
+import requests
 import os
 import cv2
 import numpy as np
-import base64
 from pdf2image import convert_from_path
+from base64Handler import convert_image_to_base64, safe_b64decode
+from various_handlers import  verify_content, delete_file, jsonify_rta,verify_key
 
 # Inicializar el lector de OCR con el idioma deseado.
 reader = easyocr.Reader(['es'])  # Asumiendo que el texto es en español
+baseurl = "https://instagram-videos.vercel.app/api/video"
 
 app = Flask(__name__)
-SECRET_KEY = 'OGLIT44458OCR32'
-
-
-def convert_image_to_base64(image_path):
-    # Leer la imagen desde el archivo
-    image = cv2.imread(image_path)
-    if image is None:
-        return None
-
-    # Codificar la imagen como PNG
-    _, buffer = cv2.imencode('.png', image)
-
-    # Convertir los bytes a Base64 y luego a cadena para JSON
-    image_base64 = base64.b64encode(buffer).decode('utf-8')
-
-    return image_base64
-
-def safe_b64decode(input_string):
-    # Normalizar y limpiar la cadena de entrada
-    input_string = input_string.strip()
-    # Reemplazar caracteres no base64 que podrían ser añadidos en algunos casos
-    input_string = input_string.replace(" ", "+")
-    try:
-        return base64.b64decode(input_string)
-    except ValueError as e:
-        print("Error de decodificación Base64:", e)
-        return None
-
-def delete_file(file_path):
-    # Comprobar si el archivo existe
-    if os.path.exists(file_path):
-        # Eliminar el archivo
-        os.remove(file_path)
-        print(f"Archivo {file_path} eliminado con éxito.")
-    else:
-        print(f"El archivo {file_path} no existe.")
-
 
 @app.route("/health")
 def health():
-    return jsonify({
-        "Status": "Server corriendo bien :)"
-    }), 200
+    return jsonify_rta("Corriendo bien", 200, {})
+
 
 
 @app.route("/")
 def index():
-    return jsonify({
-        "message":"Hola mundo"
-    }),200
+    url_value = request.args.get('url') #obtiene el parametro url del enlace
+
+    #validar que no este vacio el url
+    if (validation := verify_content(url_value, 'url')):
+        return validation
+
+    #if(auth := verify_key(key = request.headers.get('Authorization'))):
+    #    return auth
+    params = {'postUrl': url_value} #configurar parametros para hacer la consulta
+    response = requests.get(baseurl, params=params) #enviar peticion
+    # Verificar la respuesta de la API
+    if response.status_code == 200:
+        data = response.json()  # Convertimos la respuesta a JSON aquí
+        if request.args.get('d') != None: #si tenemos el query d, redireccionamos directamente al video
+            return redirect(data['data']['videoUrl'])  # Redireccionamos usando el URL extraído del JSON
+        else:
+            # Si no tenemos el d, devolvemos el JSON
+            return jsonify(data)
+    else:
+        data = response.json()
+        #en caso de error, devolvemos el JSON con el error
+        return jsonify({
+            "message": "The video wasn't found or the "+data['message']
+        }), response.status_code
 
 
 @app.route("/ocr", methods=['POST'])
 def ocr():
     print("peticion recibida)")
-
     #    # Verificar la clave secreta
     key = request.headers.get('Authorization')
     # --------------------------------- VALIDACIONES ----------------------
     if not key or key != SECRET_KEY:
         return jsonify({"error": "Unauthorized"}), 401
 
-        # Verificar la presencia de un GUID en la solicitud
+    # Verificar la presencia de un GUID en la solicitud
     guid = request.headers.get('GUID')
     if not guid:
         return jsonify({"error": "GUID not provided"}), 400
@@ -96,36 +81,32 @@ def ocr():
     filetype = data['filetype']
     print(filetype)
 
-    match filetype:
-        case '.pdf':
-            # decodifico el base64 en pdf
-            archivo = base64.b64decode(base64_file)
-            ruta_archivo_pdf = 'input_files/' + guid + '.pdf'
+    if filetype == '.pdf':
+        # decodifico el base64 en pdf
+        archivo = base64.b64decode(base64_file)
+        ruta_archivo_pdf = 'input_files/' + guid + '.pdf'
 
-            # Guardar los datos binarios en un archivo
-            with open(ruta_archivo_pdf, 'wb') as file:
-                file.write(archivo)
+        # Guardar los datos binarios en un archivo
+        with open(ruta_archivo_pdf, 'wb') as file:
+            file.write(archivo)
 
-            # Convertir el PDF guardado en imágenes PNG
-            imagenes = convert_from_path(ruta_archivo_pdf)
+        # Convertir el PDF guardado en imágenes PNG
+        imagenes = convert_from_path(ruta_archivo_pdf)
 
-            # Guardar las imágenes en archivos PNG
-            output_images = []
-            for i, imagen in enumerate(imagenes):
-                ruta_imagen_png = f'outputs/p{guid}{i + 1}.png'
-                imagen.save(ruta_imagen_png, 'PNG')
-                output_images.append(ruta_imagen_png)
+        # Guardar las imágenes en archivos PNG
+        output_images = []
+        for i, imagen in enumerate(imagenes):
+            ruta_imagen_png = f'outputs/p{guid}{i + 1}.png'
+            imagen.save(ruta_imagen_png, 'PNG')
+            output_images.append(ruta_imagen_png)
 
-            return jsonify({'message': 'Correcto', 'images': output_images}), 200
+        return jsonify({'message': 'Correcto', 'images': output_images}), 200
 
+    elif filetype == '.png':
+        return jsonify({'message': 'No implementado'})
 
-
-
-
-        case '.png':
-            return jsonify({'mesage': 'No implementado'})
-        case _:
-            return jsonify({'mesage': 'Archivo no soportado'}), 400
+    else:
+        return jsonify({'message': 'Archivo no soportado'}), 400
 
 
     # paso la imagen en base64 recibida a archivo
