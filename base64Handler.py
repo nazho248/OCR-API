@@ -1,4 +1,5 @@
 import base64
+import cv2
 
 def convert_image_to_base64(image_path):
     # Leer la imagen desde el archivo
@@ -21,7 +22,7 @@ def safe_b64decode(input_string):
     # Reemplazar caracteres no base64 que podrían ser añadidos en algunos casos
     input_string = input_string.replace(" ", "+")
     try:
-        return base64.b64decode(input_string)
+        return base64.b64decode(input_string), None
     except ValueError as e:
         print("Error de decodificación Base64:", e)
-        return None
+        return None, str(e)

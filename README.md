@@ -32,7 +32,9 @@ Esta API esta diseñada para enviar peticiones HTTP raw o json y por ahora solo 
 Procesa la imagen enviada y devuelve un Json con la imagen en base64 y el texto extraído con su respectiva confianza.
 
 * ### Body requerido
-Para la petición POST se requieren exactamente 2 valores en formato json, `archivo` y `archivo_nombre`, siendo el primero el archivo codificado en base64 y el segundo el nombre del archivo con su extensión. 
+Para la petición POST se requieren exactamente 2 valores en formato json, `archivo`,  `archivo_nombre` y `filetype` , siendo el primero el archivo codificado en base64 y el segundo el nombre del archivo con su extensión.
+
+**Por ahora solo admite archivos de tipo ``PDF`` y ``PNG``** los cuales deben ser enviados en filetype con su . inicial.
 
 
 * ### HEADERS requeridos:
@@ -83,7 +85,8 @@ Finalmente se envia un json así:
 ```json lines
 {
   "archivo": "Base64asjfkdhasujkfasdfjkashgdfasdfbjkasgf",
-  "archivo_nombre": "file.png"
+  "archivo_nombre": "file.png",
+  "filetype": ".png"
 }
 ```
 Con sus respectivos Headers
@@ -98,8 +101,12 @@ y nos arroja una respuesta así
 ```json lines
 
 {
-  "imagen_output": "Base64_con_texto_identificado_Asdjkashfiklaswjgifuhsawdiufjkaswd...",
-  "textos": [
+  "data": {
+    "pages": {
+      "0": {
+          "imagen_output": "Base64_con_texto_identificado_Asdjkashfiklaswjgifuhsawdiufjkaswd...", 
+        "promedio_confianza": 0.6366935570769906,
+          "textos": [
     {
       "confidence": 0.6765828300896995,
       "text": "CUFE"
@@ -137,6 +144,11 @@ y nos arroja una respuesta así
       "text": "17;19"
     }
   ]
+
+
+      }
+    }
+  },
 }
 
 ```
@@ -160,10 +172,10 @@ gcloud artifacts repositories create nombreRepositorio --repository-format=docke
 ```
 esto para crear el repositorio en Google cloud, podemos hacerlo desde la web pero esto es más rapido. (es posible modificar la location)
 
-luego ejecutamos
+luego ejecutamos (lo que va luego de --tag, se puede sacar de gcloud. el nombreimagen es el que tenemos local y el tag es para identificarlo en gcloud)
 
 ```shell
-gcloud builds submit --region=us-central --tag us-central1-docker.pkg.dev/id-proyecto-gcloud/nombre-repo/nombreimagen:tagcualquiera
+gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/id-proyecto-gcloud/nombre-repo/nombreimagen:tagcualquiera
 ```
 para subir el docker a nuestro repositorio. cabe destacar que la ruta se peude obtener en google cloud desde [aqui](https://console.cloud.google.com/artifacts?referrer=search&project) ingresando al repositorio y copiando su ruta. Luego de este codigo se carga a la nube
 
