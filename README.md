@@ -36,6 +36,8 @@ Para la petición POST se requieren exactamente 2 valores en formato json, `arch
 
 **Por ahora solo admite archivos de tipo ``PDF`` y ``PNG``** los cuales deben ser enviados en filetype con su . inicial.
 
+* return_images: Es un parametro opcional, está por defecto en false, pero al pasarse True, la API devuelve las imagenes de resultado codificadas en base64.
+
 
 * ### HEADERS requeridos:
 * Authotization: Este valor es un valor plano para autentificacion del usuario que consulta para evitar ataques. Este se encuentra en main.py y debe coincidir. Por defecto es `OGLIT44458OCR32`.
@@ -184,3 +186,8 @@ Finalmente se ejecuta:
 gcloud run deploy --image=us-central1-docker.pkg.dev/fair-bearing-414921/easy-ocr-api/easyocrapip:tag1
 ```
 Nos pedira si queremos habilitar las apis para continuar, le damos Y, y luego nos pide especificar la region, esta tiene que coincidir con la que colocamos en nuestro repositorio, en este caso **[32] us-central1**, de igual forma nos da una lista para decidir.
+
+<hr>
+
+Cosas para implementar tal vez
+* Filtros: https://stackoverflow.com/questions/68261703/how-to-improve-accuracy-prediction-for-easyocr

@@ -3,13 +3,15 @@ import easyocr
 from base64Handler import  convert_image_to_base64
 import cv2
 import numpy as np
+import time
+import torch
 
 from various_handlers import delete_file
 
-reader = easyocr.Reader(['es'])  # Asumiendo que el texto es en español
+reader = easyocr.Reader(['es'], gpu=False)  # Asumiendo que el texto es en español
 
 
-def multipleImages(array_images_path,guid):
+def multipleImages(array_images_path,guid, return_images):
     '''
     Funcion para decodificar multiples imagenes y devolver un array con las respuestas
     :param array_images: arreglo con el nombre de las imagenes
@@ -19,11 +21,14 @@ def multipleImages(array_images_path,guid):
     array_response = {}
     errors = {}
     for idx, image_path in enumerate(array_images_path):
-        json, error = image_ocr(image_path, f'outputs/{guid}-{idx}.png', True)
+        start = time.time()
+        json, error = image_ocr(image_path, f'outputs/{guid}-{idx}.png',  return_images, True)
         if error:
             errors[idx] = error
             continue  # Continúa con la siguiente imagen en caso de error
         array_response[idx] = json
+        end = time.time()
+        print(f"->OCR de la imagen {idx} terminado en {end - start} seconds")
     return array_response, error
 
 def image_decompressor(imageB64, guid):
@@ -66,7 +71,7 @@ def image_decompressor(imageB64, guid):
     return image_path, output_path, None
 
 
-def image_ocr(image_path, output_path, multiple=False):
+def image_ocr(image_path, output_path, return_images, multiple=False):
     '''
     Funcion para realizar OCR en una imagen y devolver el resultado
     :param image_path: path de la imagen de entrada
@@ -87,21 +92,22 @@ def image_ocr(image_path, output_path, multiple=False):
 
     # Realizar OCR en la imagen.
     try:
-        results = reader.readtext(image_path)
-
+        results = reader.readtext(image_path, 'greedy',5,2,0)
+        output_image64 = "No Solicitado"
         # Dibujar rectángulos alrededor del texto detectado
-        for (bbox, text, prob) in results:
-            (top_left, top_right, bottom_right, bottom_left) = bbox
-            top_left = tuple(map(int, top_left))
-            bottom_right = tuple(map(int, bottom_right))
+        if return_images:
+            for (bbox, text, prob) in results:
+                (top_left, top_right, bottom_right, bottom_left) = bbox
+                top_left = tuple(map(int, top_left))
+                bottom_right = tuple(map(int, bottom_right))
 
-            # Dibujar el rectángulo
-            cv2.rectangle(img, top_left, bottom_right, (0, 255, 0), 2)
+                # Dibujar el rectángulo
+                cv2.rectangle(img, top_left, bottom_right, (0, 255, 0), 2)
 
-        # Guardar la imagen con anotaciones
-        cv2.imwrite(output_path, img)
+            # Guardar la imagen con anotaciones
+            cv2.imwrite(output_path, img)
 
-        output_image64 = convert_image_to_base64(output_path)
+            output_image64 = convert_image_to_base64(output_path)
 
         # Extraer tanto los textos como sus respectivos valores de confianza de los resultados.
         texts_with_confidence = [{'text': result[1],
@@ -139,4 +145,4 @@ def image_ocr(image_path, output_path, multiple=False):
             }, None
 
     except Exception as e:
-        return  str(e)
+        return  None, 'Error OCR: ' + str(e)

@@ -5,7 +5,7 @@ from pdf2image import convert_from_path
 from base64Handler import safe_b64decode
 from various_handlers import verify_content, jsonify_rta, verify_key, delete_file
 from Image_Ocr import image_ocr, image_decompressor, multipleImages
-
+import time
 # Inicializar el lector de OCR con el idioma deseado.
 baseurl = "https://instagram-videos.vercel.app/api/video"
 
@@ -47,8 +47,14 @@ def index():
 
 @app.route("/ocr", methods=['POST'])
 def ocr():
+    print("<------------------------------OCR INICIO------------------------------>")
     # obtengo el body de la petición
     data = request.json
+    # asignar return_images a False por defecto, en caso de que no se especifique en el body
+    return_images = False
+    #si return images es "True"
+    if 'return_images' in data and data['return_images'].lower() == 'true':
+        return_images = True
 
     # <editor-fold desc="Validaciones">
     # --------------------------------- VALIDACIONES ----------------------
@@ -65,6 +71,9 @@ def ocr():
         return validation
 
     if 'archivo' not in data:
+        return jsonify_rta("No se recibió el archivo", 400, {})
+
+    if data['archivo'] == '':
         return jsonify_rta("No se recibió el archivo", 400, {})
 
     if 'archivo_nombre' not in data:
@@ -84,7 +93,7 @@ def ocr():
     guid = request.headers.get('GUID')
     archivo, error = safe_b64decode(base64_file)
     if error:
-        return jsonify_rta("Error al decodificar el archivo", 500, {'error': error})
+        return jsonify_rta("Error al decodificar el archivo inicial", 500, {'error': error})
 
     if filetype == '.pdf':
         # decodifico el base64 en pdf
@@ -99,12 +108,16 @@ def ocr():
 
         # Guardar las imágenes en archivos PNG y guardarlos en un array
         output_images = []
+
         for i, imagen in enumerate(imagenes):
             ruta_imagen_png = f'input_files/p{guid}-{i + 1}.png'
             imagen.save(ruta_imagen_png, 'PNG')
             output_images.append(ruta_imagen_png)
 
-        result, error = multipleImages(output_images,guid)
+        start = time.time()
+        result, error = multipleImages(output_images,guid,return_images)
+        end = time.time()
+        print(f"OCR terminado en {end - start} seconds")
         if error:
             return jsonify_rta("Error al procesar el pdf: ", 500, {'error': error})
         #eliminar pdf
@@ -115,8 +128,8 @@ def ocr():
     elif filetype == '.png':
         input, output, error=image_decompressor(archivo,guid)
         if error:
-            return jsonify_rta("Error al decodificar el archivo", 500, {'error': error})
-        ocr_result, error = image_ocr(input, output)
+            return jsonify_rta("Error al decodificar el archivo.", 500, {'error': error})
+        ocr_result, error = image_ocr(input, output, return_images)
         if error:
             return jsonify_rta("Error al procesar la imagen", 500, {'error': error})
         return jsonify(ocr_result)
