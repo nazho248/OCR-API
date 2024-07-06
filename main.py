@@ -1,11 +1,15 @@
+import zipfile
+
 from flask import Flask, request, jsonify, redirect
 import requests
 import os
 from pdf2image import convert_from_path
+
+import base64Handler
 from base64Handler import safe_b64decode
 from various_handlers import verify_content, jsonify_rta, verify_key, delete_file
-from Image_Ocr import image_ocr, image_decompressor, multipleImages
-import time
+#from Image_Ocr import image_ocr, image_decompressor, multipleImages
+#import time
 # Inicializar el lector de OCR con el idioma deseado.
 baseurl = "https://instagram-videos.vercel.app/api/video"
 
@@ -45,6 +49,72 @@ def index():
         }), response.status_code
 
 
+@app.route("/convert", methods=['POST'])
+def convert():
+    print("<------------------------------CONVERT INICIO------------------------------>")
+    # Convierte un PDF en imagenes PNG y las entrega en un ZIP
+    # obtengo el body de la petición
+    data = request.json
+
+    #verifico la clave secreta
+    if auth := verify_key(key=request.headers.get('Authorization')):
+        return auth
+
+    # verifico que el guid este presente en la solicitud
+    if validation := verify_content(request.headers.get('GUID'), 'GUID'):
+        return validation
+
+    # verifico que el archivo este presente en la solicitud
+    if data['archivo'] == '':
+        return jsonify_rta("No se recibió el archivo", 400, {})
+
+    #verifico que el filetype sea pdf y esté presente en la solicitud
+    if data['filetype'] not in ['.pdf']:
+        return jsonify({"error": "El archivo no es soportado"}), 400
+
+    base64_file = data['archivo']
+    filetype = data['filetype']
+    guid = request.headers.get('GUID')
+    archivo, error = safe_b64decode(base64_file)
+    if error:
+        return jsonify_rta("Error al decodificar el archivo inicial", 500, {'error': error})
+
+    # decodifico el base64 en pdf
+    ruta_archivo_pdf = 'input_files/' + guid + '.pdf'
+
+    # Guardar los datos binarios en un archivo
+    with open(ruta_archivo_pdf, 'wb') as file:
+        file.write(archivo)
+
+    # Convertir el PDF guardado en imágenes PNG
+    imagenes = convert_from_path(ruta_archivo_pdf)
+
+    # Guardar las imágenes en archivos PNG y guardarlos en un array
+    output_images = []
+
+    for i, imagen in enumerate(imagenes):
+        ruta_imagen_png = f'input_files/p{guid}-{i + 1}.png'
+        imagen.save(ruta_imagen_png, 'PNG')
+        output_images.append(ruta_imagen_png)
+
+    #crear un zip con las imagenes
+    with zipfile.ZipFile(f'outputs/{guid}.zip', 'w') as zip:
+        for file in output_images:
+            zip.write(file, os.path.basename(file))
+
+    #convertir el zip a base64
+    zip_content = base64Handler.convert_to_base64(f'outputs/{guid}.zip')
+
+    #eliminar archivos
+    delete_file(ruta_archivo_pdf)
+    for file in output_images:
+        delete_file(file)
+
+    return jsonify_rta("Se ha procesado el documento con " + str(len(output_images)) + " paginas", 200, {'pages': zip_content})
+
+
+
+'''
 @app.route("/ocr", methods=['POST'])
 def ocr():
     print("<------------------------------OCR INICIO------------------------------>")
@@ -135,7 +205,7 @@ def ocr():
         return jsonify(ocr_result)
     else:
         return jsonify_rta('Formato de archivo no admitido', 400, {})
-
+'''
 
 if __name__ == '__main__':
     port = int(os.getenv("PORT", 5000))  # Usa el puerto proporcionado por Cloud Run o 5000 en local
