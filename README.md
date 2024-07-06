@@ -1,5 +1,16 @@
 # Easy OCR Flask API
 
+contenidos
+<ol>
+<li><a href="#Easy-OCR-Flask-API">Easy OCR Flask API</a></li>
+<li><a href="#Ejemplo-Uso">Ejemplo Uso</a></li>
+<li><a href="#Montaje-en-docker-con-Google-Cloud">Montaje en docker con Google Cloud</a></li>
+<li><a href="#Cosas-para-implementar-tal-vez">Cosas para implementar tal vez</a></li>
+</ol>
+
+<hr>
+
+
 Este proyecto consiste en una api del ocr de la biblioteca [EasyOCR](https://github.com/JaidedAI/EasyOCR) la 
 cual usa inteligencia artificial para reconocimiento de caracteres.
 
@@ -162,7 +173,7 @@ La imagen que da de output es la siguiente:
 
 Para el montaje en docker se descarga desde [el sitio oficial](https://www.docker.com/products/docker-desktop/) y bueno siguiente siguiente...
 
-Para crear la imagen se hace con `docker image built -t nombreimagen .` y para ejecutarlo en el docker local se hace un `docker run -p 5000:5000 nombreimagen`
+Para crear la imagen se hace con `docker image build -t nombreimagen .` y para ejecutarlo en el docker local se hace un `docker run -p 5000:5000 nombreimagen`
 y ya estaría montado, no hay que tocar dockerfile ni requeriments.txt.
 
 Para montarlo en Google cloud nos descargamos el sdk de google cloud lo configuramos segun su [documentacion](https://cloud.google.com/sdk/?authuser=2&hl=es_419) oficial.

@@ -109,6 +109,8 @@ def convert():
     delete_file(ruta_archivo_pdf)
     for file in output_images:
         delete_file(file)
+    #borrar zip
+    delete_file(f'outputs/{guid}.zip')
 
     return jsonify_rta("Se ha procesado el documento con " + str(len(output_images)) + " paginas", 200, {'pages': zip_content})
 
