@@ -1,10 +1,11 @@
 import zipfile
-
 from flask import Flask, request, jsonify, redirect
 import requests
 import os
+import io
+from PIL import Image
 from pdf2image import convert_from_path
-
+import base64
 import base64Handler
 from base64Handler import safe_b64decode
 from various_handlers import verify_content, jsonify_rta, verify_key, delete_file
@@ -75,6 +76,7 @@ def convert():
     base64_file = data['archivo']
     filetype = data['filetype']
     guid = request.headers.get('GUID')
+    print("Se inició el proceso para : " + guid)
     archivo, error = safe_b64decode(base64_file)
     if error:
         return jsonify_rta("Error al decodificar el archivo inicial", 500, {'error': error})
@@ -109,10 +111,97 @@ def convert():
     delete_file(ruta_archivo_pdf)
     for file in output_images:
         delete_file(file)
+
+    #size in mb of zip
+    zip_size = os.path.getsize(f'outputs/{guid}.zip') / 1024 / 1024
     #borrar zip
     delete_file(f'outputs/{guid}.zip')
 
+    print("Se ha procesado el documento con " + str(len(output_images)) + " paginas, con GUID: " + guid + " y tamaño del zip: " + str(zip_size) + " MB")
+
     return jsonify_rta("Se ha procesado el documento con " + str(len(output_images)) + " paginas", 200, {'pages': zip_content})
+
+
+@app.route("/convertjpg", methods=['POST'])
+def converttojpg():
+    print("<------------------------------CONVERT JPG INICIO------------------------------>")
+    # Convierte un PDF en imagenes PNG y las entrega en un ZIP
+    # obtengo el body de la petición
+    data = request.json
+
+    #verifico la clave secreta
+    if auth := verify_key(key=request.headers.get('Authorization')):
+        return auth
+
+    # verifico que el guid este presente en la solicitud
+    if validation := verify_content(request.headers.get('GUID'), 'GUID'):
+        return validation
+
+    # verifico que el archivo este presente en la solicitud
+    if data['archivo'] == '':
+        return jsonify_rta("No se recibió el archivo", 400, {})
+
+    #verifico que el filetype sea pdf y esté presente en la solicitud
+    if data['filetype'] not in ['.pdf']:
+        return jsonify({"error": "El archivo no es soportado"}), 400
+
+    #ver si existe quality, si no existe se asigna a 90
+    qualityimage = 95
+    if 'quality' in data:
+        qualityimage = data['quality']
+
+
+    base64_file = data['archivo']
+    filetype = data['filetype']
+    guid = request.headers.get('GUID')
+    print("Se inició el proceso para : " + guid)
+    archivo, error = safe_b64decode(base64_file)
+    if error:
+        return jsonify_rta("Error al decodificar el archivo inicial", 500, {'error': error})
+
+    # decodifico el base64 en pdf
+    ruta_archivo_pdf = 'input_files/' + guid + '.pdf'
+
+    # Guardar los datos binarios en un archivo
+    with open(ruta_archivo_pdf, 'wb') as file:
+        file.write(archivo)
+
+    imagenes = convert_from_path(ruta_archivo_pdf)
+
+    # Crear un archivo ZIP en memoria
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as zip_file:
+        for i, imagen in enumerate(imagenes):
+            # Resize image if needed (adjust dimensions as required)
+            imagen = imagen.resize((1000, int(1000 * imagen.height / imagen.width)))
+
+            # Determine if the image has transparency
+            if imagen.mode in ('RGBA', 'LA') or (imagen.mode == 'P' and 'transparency' in imagen.info):
+                # For images with transparency, use optimized PNG
+                img_buffer = io.BytesIO()
+                imagen.save(img_buffer, format='PNG', optimize=True, quality=qualityimage)
+                img_buffer.seek(0)
+                zip_file.writestr(f'page-{i+1}.png', img_buffer.getvalue())
+            else:
+                # For images without transparency, use JPEG
+                img_buffer = io.BytesIO()
+                imagen = imagen.convert('RGB')
+                imagen.save(img_buffer, format='JPEG', optimize=True, quality=qualityimage)
+                img_buffer.seek(0)
+                zip_file.writestr(f'page-{i+1}.jpg', img_buffer.getvalue())
+
+    # Get the ZIP content as bytes
+    zip_content = zip_buffer.getvalue()
+
+    # Convert ZIP content to base64
+    zip_base64 = base64.b64encode(zip_content).decode('utf-8')
+
+    # Calculate ZIP size in MB
+    zip_size = len(zip_content) / (1024 * 1024)
+
+    print(f"Se ha procesado el documento con {len(imagenes)} paginas, con GUID: {guid} y tamaño del zip: {zip_size:.2f} MB")
+    return zip_base64
+    return jsonify_rta(f"Se ha procesado el documento con {len(imagenes)} paginas", 200, {'pages': zip_base64})
 
 
 
