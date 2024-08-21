@@ -26,6 +26,7 @@ luego se ejecuta:
 ``` shell
 python3 main.py port=5000
 ```
+o se ejecuta : `python wsgi.py port=5000`
 y se ingresa al [localhost:5000/ocr](http://127.0.0.1:5000/ocr).
 <br>
 Si se necesita verificar estado del servicio se ingresa a [localhost:5000/health](http://127.0.0.1:5000/health) el cual imprimirá un json con

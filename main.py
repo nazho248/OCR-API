@@ -1,11 +1,13 @@
 import zipfile
-from flask import Flask, request, jsonify, redirect
+
+from flask import Flask, request, jsonify, redirect, render_template, url_for
 import requests
 import os
 import io
 from PIL import Image
 from pdf2image import convert_from_path
 import base64
+import textwrap
 import base64Handler
 from base64Handler import safe_b64decode
 from various_handlers import verify_content, jsonify_rta, verify_key, delete_file
@@ -16,14 +18,64 @@ baseurl = "https://instagram-videos.vercel.app/api/video"
 
 app = Flask(__name__)
 
-
 @app.route("/health")
 def health():
     return jsonify_rta("Corriendo bien", 200, {})
 
-
-@app.route("/")
+@app.route('/', methods=['GET', 'POST'])
 def index():
+    processed_text = ''
+    char_count = 0
+    if request.method == 'POST':
+        text = request.form['text_input']
+        processed_text, char_count = process_text(text)
+    return render_template('index.html', processed_text=processed_text, char_count=char_count)
+
+
+def process_text(text):
+    # Limitar el texto a 600 caracteres
+    text = text[:600]
+
+    words = text.split()
+    lines = []
+    current_line = []
+    current_length = 0
+
+    for word in words:
+        if current_length + len(word) + len(current_line) <= 60:
+            current_line.append(word)
+            current_length += len(word)
+        else:
+            if current_line:
+                spaces_needed = 60 - current_length
+                spaces_between = spaces_needed // max(1, len(current_line) - 1)
+                extra_spaces = spaces_needed % max(1, len(current_line) - 1)
+
+                justified_line = ""
+                for i, w in enumerate(current_line):
+                    justified_line += w
+                    if i < len(current_line) - 1:
+                        justified_line += " " * spaces_between
+                        if i < extra_spaces:
+                            justified_line += " "
+
+                lines.append(justified_line)
+
+            current_line = [word]
+            current_length = len(word)
+
+    # Añadir la última línea sin justificar
+    if current_line:
+        lines.append(" ".join(current_line).ljust(60))
+
+    processed_text = "".join(lines)
+    char_count = len(processed_text)
+
+    return processed_text, char_count
+
+
+@app.route("/instagram")
+def instagram():
     # obtiene el parámetro url del enlace
     url_value = request.args.get('url')
     # validar que no este vacío el url
@@ -200,7 +252,6 @@ def converttojpg():
     zip_size = len(zip_content) / (1024 * 1024)
 
     print(f"Se ha procesado el documento con {len(imagenes)} paginas, con GUID: {guid} y tamaño del zip: {zip_size:.2f} MB")
-    return zip_base64
     return jsonify_rta(f"Se ha procesado el documento con {len(imagenes)} paginas", 200, {'pages': zip_base64})
 
 
