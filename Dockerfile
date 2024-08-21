@@ -1,41 +1,35 @@
-# start by pulling the python image
+# Usar una imagen base de Python
 FROM python:3.8-slim
 
-RUN apt-get update && apt-get install -y poppler-utils
-
-# copy the requirements file into the image
-COPY ./requirements.txt /app/requirements.txt
-
-# switch working directory
-WORKDIR /app
-
-# Update pip
-RUN pip install --upgrade pip
-
-# Install necessary system dependencies
-RUN apt-get update -y && \
-    apt-get install -y \
+# Instalar las dependencias del sistema
+RUN apt-get update && apt-get install -y \
+    poppler-utils \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgl1-mesa-dev \
     git \
-    # cleanup
     && apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists
+    && rm -rf /var/lib/apt/lists/*
 
+# Establecer el directorio de trabajo
+WORKDIR /app
 
-# Install the dependencies and packages in the requirements file
+# Copiar el archivo de requisitos y actualizar pip
+COPY requirements.txt .
+RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# copy every content from the local file to the image
-COPY . /app
+# Copiar el contenido del proyecto al directorio de trabajo
+COPY . .
 
+# Exponer el puerto 5000
 EXPOSE 5000
 
-# configure the container to run in an executed manner
+# Configurar el punto de entrada para ejecutar el servidor con waitress
 ENTRYPOINT ["python"]
 
-CMD ["main.py"]
+# Cambiar a usar waitress en lugar de gunicorn
+CMD ["wsgi.py"]

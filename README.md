@@ -1,5 +1,16 @@
 # Easy OCR Flask API
 
+contenidos
+<ol>
+<li><a href="#Easy-OCR-Flask-API">Easy OCR Flask API</a></li>
+<li><a href="#Ejemplo-Uso">Ejemplo Uso</a></li>
+<li><a href="#Montaje-en-docker-con-Google-Cloud">Montaje en docker con Google Cloud</a></li>
+<li><a href="#Cosas-para-implementar-tal-vez">Cosas para implementar tal vez</a></li>
+</ol>
+
+<hr>
+
+
 Este proyecto consiste en una api del ocr de la biblioteca [EasyOCR](https://github.com/JaidedAI/EasyOCR) la 
 cual usa inteligencia artificial para reconocimiento de caracteres.
 
@@ -15,6 +26,7 @@ luego se ejecuta:
 ``` shell
 python3 main.py port=5000
 ```
+o se ejecuta : `python wsgi.py port=5000`
 y se ingresa al [localhost:5000/ocr](http://127.0.0.1:5000/ocr).
 <br>
 Si se necesita verificar estado del servicio se ingresa a [localhost:5000/health](http://127.0.0.1:5000/health) el cual imprimirá un json con
@@ -162,7 +174,7 @@ La imagen que da de output es la siguiente:
 
 Para el montaje en docker se descarga desde [el sitio oficial](https://www.docker.com/products/docker-desktop/) y bueno siguiente siguiente...
 
-Para crear la imagen se hace con `docker image built -t nombreimagen .` y para ejecutarlo en el docker local se hace un `docker run -p 5000:5000 nombreimagen`
+Para crear la imagen se hace con `docker image build -t nombreimagen .` y para ejecutarlo en el docker local se hace un `docker run -p 5000:5000 nombreimagen`
 y ya estaría montado, no hay que tocar dockerfile ni requeriments.txt.
 
 Para montarlo en Google cloud nos descargamos el sdk de google cloud lo configuramos segun su [documentacion](https://cloud.google.com/sdk/?authuser=2&hl=es_419) oficial.
@@ -174,16 +186,25 @@ gcloud artifacts repositories create nombreRepositorio --repository-format=docke
 ```
 esto para crear el repositorio en Google cloud, podemos hacerlo desde la web pero esto es más rapido. (es posible modificar la location)
 
-luego ejecutamos (lo que va luego de --tag, se puede sacar de gcloud. el nombreimagen es el que tenemos local y el tag es para identificarlo en gcloud)
+luego ejecutamos (lo que va luego de --tag se puede sacar de gcloud ingresando a [artifact registry](https://console.cloud.google.com/artifacts/docker/pdf-processor-api/us-central1/pdfproccesor?project=pdf-processor-api),
+ingresando al proyecto que recien hemos creado y en la parte superior podemos copiar la ruta con un boton de portapapeles. el _nombreimagen_ es la imagen que tenemos local y el tag es para identificarlo
+en gcloud), si nos pide habilitar las apis, le damos que si y esperamos.
 
 ```shell
 gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/id-proyecto-gcloud/nombre-repo/nombreimagen:tagcualquiera
+
+gcloud builds submit --region=us-central1 --tag us-central1-docker.pkg.dev/[PROJECT_ID]/[REPO_NAME]/[IMAGE_NAME]:[TAG]
 ```
-para subir el docker a nuestro repositorio. cabe destacar que la ruta se peude obtener en google cloud desde [aqui](https://console.cloud.google.com/artifacts?referrer=search&project) ingresando al repositorio y copiando su ruta. Luego de este codigo se carga a la nube
+Este comando sube el contenedor docker a nuestro repositorio. Destacando nuevamente que la ruta se peude obtener en google cloud desde [aqui](https://console.cloud.google.com/artifacts?referrer=search&project) ingresando al repositorio y copiando su ruta. Luego de este codigo se carga a la nube
 
 Finalmente se ejecuta:
 ```shell
 gcloud run deploy --image=us-central1-docker.pkg.dev/fair-bearing-414921/easy-ocr-api/easyocrapip:tag1
+#esto lo podemos obtener del artifact registri, ejecutamos:, donde lo que esta luego del --image es la ruta que nos da google cloud al ingresar a la seccion de artifact registry y al contenedor
+gcloud run deploy --image=us-central1-docker.pkg.dev/[PROJECT_ID]/[REPO_NAME]/[IMAGE_NAME]:[TAG] --port=5000
+#ejemplo gcloud run deploy pdfconverter --image=us-central1-docker.pkg.dev/pdf-processor-api/pdfproccesor/pdfconverter-wsgi:production --region=us-central1 --port=5000
+
+
 ```
 Nos pedira si queremos habilitar las apis para continuar, le damos Y, y luego nos pide especificar la region, esta tiene que coincidir con la que colocamos en nuestro repositorio, en este caso **[32] us-central1**, de igual forma nos da una lista para decidir.
 
